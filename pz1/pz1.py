@@ -43,7 +43,6 @@ class PlotterAnalyze:
         fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 5), 
                                              subplot_kw={'projection': 'polar'})
 
-        # Построение графиков
         ax0.plot(theta, F0_dB, label="θ₀ = 0°")
         ax1.plot(theta, F_half_dB, label="θ₀ = θmax/2")
         ax2.plot(theta, F_max_dB, label="θ₀ = θmax")
