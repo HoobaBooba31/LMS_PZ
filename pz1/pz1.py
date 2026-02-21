@@ -59,6 +59,7 @@ class PlotterAnalyze:
         plt.tight_layout()
         plt.show()
 
+
 class RCSSolver:
     def __init__(self, 
                  freq: float, 
