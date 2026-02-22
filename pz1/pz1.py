@@ -51,16 +51,25 @@ class PlotterAnalyze:
         F_max_dB = 20 * np.log10(np.maximum(max_grad, 1e-12))
 
         fig = plt.figure(figsize=(12, 10))
-
+        
         ax1 = fig.add_subplot(2, 2, 1, projection='polar')
+        ax1.set_theta_zero_location("N")
+        ax1.set_theta_direction(-1)
+        ax1.set_rlim(-40, 0)
         ax1.plot(theta, F0_dB)
         ax1.set_title("θ₀ = 0°")
 
         ax2 = fig.add_subplot(2, 2, 2, projection='polar')
+        ax2.set_theta_zero_location("N")
+        ax2.set_theta_direction(-1)
+        ax2.set_rlim(-40, 0)
         ax2.plot(theta, F_half_dB)
         ax2.set_title(f"θ₀ = {(max_grad_numb/2):.1f}°")
 
         ax3 = fig.add_subplot(2, 2, 3, projection='polar')
+        ax3.set_theta_zero_location("N")
+        ax3.set_theta_direction(-1)
+        ax3.set_rlim(-40, 0)
         ax3.plot(theta, F_max_dB)
         ax3.set_title(f"θ₀ = {max_grad_numb}°")
 
@@ -93,8 +102,8 @@ class RCSSolver:
 
     @property
     def N(self) -> int:
-        return int(np.ceil((np.degrees(51)*self.lmbd)
-                           /(self.d*np.rad2deg(self.delta_theta)))) 
+        return int(np.ceil((np.deg2rad(51)*self.lmbd)
+                           /(self.d * self.delta_theta))) 
     
 
     @property
@@ -194,8 +203,8 @@ if __name__ == "__main__":
     )
 
     solver = RCSSolver(freq=1e10, 
-                       theta_max=np.degrees(45),
-                       delta_theta=np.degrees(15))
+                       theta_max=45,
+                       delta_theta=15)
     data = solver.solver()
 
     PlotterAnalyze.create_plot(theta=data["theta"],
