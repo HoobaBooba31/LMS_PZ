@@ -1,6 +1,11 @@
+import logging.config
 import matplotlib.pyplot as plt
-
+import logging
 import numpy as np
+from typing import List
+
+from scipy.signal import find_peaks
+
 
 
 class PlotterAnalyze:
@@ -10,6 +15,8 @@ class PlotterAnalyze:
                     zero_grad: np.ndarray,
                     half_max: np.ndarray,
                     max_grad: np.ndarray,
+                    peaks: List[float],
+                    max_grad_numb: float = 45,
                     title: str = "Диаграмма направленности ЛФАР") -> None:
         """
         Строит нормированные амплитудные диаграммы направленности
@@ -28,30 +35,41 @@ class PlotterAnalyze:
             max_grad : ndarray
                 ДН при theta = theta_max
 
-            db_min : float
-                нижний предел по оси Y (дБ)
-
+            peaks : List[float]
+                Пики боковых лепестков theta = 0, max/2, max
+            
+            max_grad_numb : float
+                Максимальное значение угла в градусах
+                
             title : str
                 заголовок графика
         """
 
-
+        theta_zero = [np.deg2rad(0), np.deg2rad(max_grad_numb/2), np.deg2rad(max_grad_numb)]
         F0_dB = 20 * np.log10(np.maximum(zero_grad, 1e-12))
         F_half_dB = 20 * np.log10(np.maximum(half_max, 1e-12))
         F_max_dB = 20 * np.log10(np.maximum(max_grad, 1e-12))
 
-        fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 5), 
-                                             subplot_kw={'projection': 'polar'})
+        fig = plt.figure(figsize=(12, 10))
 
-        ax0.plot(theta, F0_dB, label="θ₀ = 0°")
-        ax1.plot(theta, F_half_dB, label="θ₀ = θmax/2")
-        ax2.plot(theta, F_max_dB, label="θ₀ = θmax")
+        ax1 = fig.add_subplot(2, 2, 1, projection='polar')
+        ax1.plot(theta, F0_dB)
+        ax1.set_title("θ₀ = 0°")
 
-        for ax, label in zip([ax0, ax1, ax2], 
-                              ["θ₀ = 0°", "θ₀ = θmax/2", "θ₀ = θmax"]):
-            ax.set_title(label)
-            ax.grid(True)
-            ax.legend(loc='lower left')
+        ax2 = fig.add_subplot(2, 2, 2, projection='polar')
+        ax2.plot(theta, F_half_dB)
+        ax2.set_title(f"θ₀ = {(max_grad_numb/2):.1f}°")
+
+        ax3 = fig.add_subplot(2, 2, 3, projection='polar')
+        ax3.plot(theta, F_max_dB)
+        ax3.set_title(f"θ₀ = {max_grad_numb}°")
+
+        ax4 = fig.add_subplot(2, 2, 4)
+        ax4.plot(theta_zero, peaks)
+        ax4.set_xlabel("θ₀")
+        ax4.set_ylabel("SLL (dB)")
+        ax4.set_title("Зависимость уровня бокового лепестка от θ₀")
+        ax4.grid(True)
 
         fig.suptitle(title, fontsize=14)
         
@@ -102,6 +120,19 @@ class RCSSolver:
         return func_abs/np.max(func_abs)
     
 
+    def _find_sll(self, func: np.ndarray) -> float:
+        
+        peaks, _ = find_peaks(func)
+
+        peak_values = func[peaks]
+        sorted_peaks = np.sort(peak_values)
+
+        sll_linear = sorted_peaks[-2]
+        sll_db = 20 * np.log10(sll_linear)
+
+        return sll_db
+
+
     def solver(self) -> dict:
         """
     Выполняет расчёт нормированных амплитудных диаграмм направленности
@@ -136,17 +167,32 @@ class RCSSolver:
         F0 = self._norm(self._func(theta0=0))
         F_half_max = self._norm(self._func(theta0=(self.theta_max / 2)))
         F_max = self._norm(self._func(theta0=self.theta_max))
+        
+        logging.info("Расчёт завершён. Параметры решётки:")
         print(f"N: {self.N}\nd: {self.d}\nlambda: {self.lmbd}")
+
+        logging.info("Нахождение наибольших лепестков для каждого угла фазового возбуждения:")
+        F0_peak = self._find_sll(F0)
+        F_half_max_peak = self._find_sll(F_half_max)
+        F_max_peak = self._find_sll(F_max)
+        print(f"zero_grad: {F0_peak}\nhalf_max_grad: {F_half_max_peak}\nmax_grad: {F_max_peak}")
 
         return {
             "theta": self.theta,
             "zero_grad": F0,
             "half_max": F_half_max,
             "max_grad": F_max,
+            "peaks": [F0_peak, F_half_max_peak, F_max_peak]
         }
 
     
 if __name__ == "__main__":
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format=r"[%(levelname)s] %(message)s"
+    )
+
     solver = RCSSolver(freq=1e10, 
                        theta_max=np.degrees(45),
                        delta_theta=np.degrees(15))
@@ -155,4 +201,5 @@ if __name__ == "__main__":
     PlotterAnalyze.create_plot(theta=data["theta"],
                                zero_grad=data["zero_grad"],
                                half_max=data["half_max"],
-                               max_grad=data["max_grad"])
+                               max_grad=data["max_grad"],
+                               peaks=data["peaks"])
