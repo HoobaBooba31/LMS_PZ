@@ -1,4 +1,3 @@
-import logging.config
 import matplotlib.pyplot as plt
 import logging
 import numpy as np
@@ -15,7 +14,8 @@ class PlotterAnalyze:
                     zero_grad: np.ndarray,
                     half_max: np.ndarray,
                     max_grad: np.ndarray,
-                    peaks: List[float],
+                    peaks: np.ndarray,
+                    degrees: np.ndarray,
                     max_grad_numb: float = 45,
                     title: str = "Диаграмма направленности ЛФАР") -> None:
         """
@@ -45,7 +45,30 @@ class PlotterAnalyze:
                 заголовок графика
         """
 
-        theta_zero = [np.deg2rad(0), np.deg2rad(max_grad_numb/2), np.deg2rad(max_grad_numb)]
+
+        def add_main_lobe_markers(ax: plt.axes, theta: np.ndarray, F_dB: np.ndarray) -> None:
+            idx_max = np.argmax(F_dB)
+            theta_max = theta[idx_max]
+            r_max = F_dB[idx_max]
+
+            level = r_max - 3
+
+            left_idx = idx_max
+            while left_idx > 0 and F_dB[left_idx] >= level:
+                left_idx -= 1
+
+            right_idx = idx_max
+            while right_idx < len(F_dB) - 1 and F_dB[right_idx] >= level:
+                right_idx += 1
+
+            theta_left = theta[left_idx]
+            theta_right = theta[right_idx]
+
+            beamwidth = theta_right - theta_left
+
+            print(f"Направление максимума: {np.rad2deg(theta_max):.3f}°")
+            print(f"Ширина главного лепестка (-3 dB): {np.rad2deg(beamwidth):.3f}°")
+            
         F0_dB = 20 * np.log10(np.maximum(zero_grad, 1e-12))
         F_half_dB = 20 * np.log10(np.maximum(half_max, 1e-12))
         F_max_dB = 20 * np.log10(np.maximum(max_grad, 1e-12))
@@ -57,6 +80,7 @@ class PlotterAnalyze:
         ax1.set_theta_direction(-1)
         ax1.set_rlim(-40, 0)
         ax1.plot(theta, F0_dB)
+        add_main_lobe_markers(ax1, theta, F0_dB)
         ax1.set_title("θ₀ = 0°")
 
         ax2 = fig.add_subplot(2, 2, 2, projection='polar')
@@ -71,10 +95,11 @@ class PlotterAnalyze:
         ax3.set_theta_direction(-1)
         ax3.set_rlim(-40, 0)
         ax3.plot(theta, F_max_dB)
+        add_main_lobe_markers(ax3, theta, F_max_dB)
         ax3.set_title(f"θ₀ = {max_grad_numb}°")
 
         ax4 = fig.add_subplot(2, 2, 4)
-        ax4.plot(theta_zero, peaks)
+        ax4.plot(degrees, peaks)
         ax4.set_xlabel("θ₀")
         ax4.set_ylabel("SLL (dB)")
         ax4.set_title("Зависимость уровня бокового лепестка от θ₀")
@@ -108,7 +133,8 @@ class RCSSolver:
 
     @property
     def d(self) -> float:
-        return self.lmbd / (1 + np.sin(self.theta_max)) * 0.99
+        # return self.lmbd / (1 + np.sin(self.theta_max)) * 0.99 # Это при условии, что мы хотим максимально приблизиться к d_max, но не превышать его
+        return self.lmbd/2 # Отклонение, чтобы не получить второй дифракционный лепесток.
 
 
     def _func(self, theta0: float) -> np.ndarray:
@@ -172,7 +198,22 @@ class RCSSolver:
 
             "max_grad": ndarray
                 нормированная ДН при theta = theta_max
+
+            "peaks": ndarray
+                пик
         }"""
+        degrees = np.linspace(0, np.rad2deg(self.theta_max), 200)
+        theta0_array = np.deg2rad(degrees)
+
+        peaks = []
+
+        for theta0 in theta0_array:
+            F = self._norm(self._func(theta0))
+            sll = self._find_sll(F)
+            peaks.append(sll)
+
+        peaks = np.array(peaks)
+
         F0 = self._norm(self._func(theta0=0))
         F_half_max = self._norm(self._func(theta0=(self.theta_max / 2)))
         F_max = self._norm(self._func(theta0=self.theta_max))
@@ -191,7 +232,8 @@ class RCSSolver:
             "zero_grad": F0,
             "half_max": F_half_max,
             "max_grad": F_max,
-            "peaks": [F0_peak, F_half_max_peak, F_max_peak]
+            "peaks": peaks,
+            "degrees": degrees
         }
 
     
@@ -211,4 +253,5 @@ if __name__ == "__main__":
                                zero_grad=data["zero_grad"],
                                half_max=data["half_max"],
                                max_grad=data["max_grad"],
-                               peaks=data["peaks"])
+                               peaks=data["peaks"],
+                               degrees=data["degrees"])
