@@ -35,8 +35,11 @@ class PlotterAnalyze:
             max_grad : ndarray
                 ДН при theta = theta_max
 
-            peaks : List[float]
-                Пики боковых лепестков theta = 0, max/2, max
+            peaks : ndarray
+                Пики боковых лепестков для каждого угла фазового возбуждения
+
+            degrees : ndarray
+                Массив углов фазового возбуждения в градусах
             
             max_grad_numb : float
                 Максимальное значение угла в градусах
@@ -200,7 +203,10 @@ class RCSSolver:
                 нормированная ДН при theta = theta_max
 
             "peaks": ndarray
-                пик
+                Пики боковых лепестков для каждого угла фазового возбуждения
+            
+            "degrees": ndarray
+                Массив углов фазового возбуждения в градусах
         }"""
         degrees = np.linspace(0, np.rad2deg(self.theta_max), 200)
         theta0_array = np.deg2rad(degrees)
