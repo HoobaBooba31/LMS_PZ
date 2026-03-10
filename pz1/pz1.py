@@ -136,7 +136,7 @@ class RCSSolver:
 
     @property
     def d(self) -> float:
-        return self.lmbd / (1 + np.sin(self.theta_max)) * 0.80 # Это при условии, что мы хотим максимально приблизиться к d_max, но не превышать его
+        return self.lmbd / (1 + np.sin(self.theta_max)) * 0.9 # Это при условии, что мы хотим максимально приблизиться к d_max, но не превышать его
         # return self.lmbd/2 # Отклонение, чтобы не получить второй дифракционный лепесток.
 
 
